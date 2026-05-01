@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리 냥이 🍌</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sky: #e4ecf7;
+  --ground-top: #cdc2ae;
+  --ground-mid: #bfb49e;
+  --ui-bg: rgba(255,255,255,0.82);
+  --border: #ccc5b8;
+  --text: #5c5148;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--sky);
+  font-family: 'Courier New', Courier, monospace;
+  position: relative;
+}
+
+/* ── 배경 ── */
+.bg-sky {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #d8e8f8 0%, #e8f0f8 55%, #cfc4ae 55%, #bfb49e 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 보도블록 라인 */
+.bg-sky::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 52px;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(160,148,130,0.5) 0px, rgba(160,148,130,0.5) 40px,
+    transparent 40px, transparent 80px
+  );
+}
+
+/* ── 허드 (상단 상태창) ── */
+.hud {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--ui-bg);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 7px 18px;
+  z-index: 200;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+.hud-stat { display: flex; align-items: center; gap: 5px; }
+.bar-wrap {
+  width: 52px; height: 6px;
+  background: #e8e2d8;
+  border-radius: 3px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.6s ease, background-color 0.6s;
+}
+.hud-lv { font-weight: bold; color: #9a7a5a; font-size: 12px; margin-left: 2px; }
+.hud-sep { color: #ccc; }
+
+/* ── 알림 ── */
+.notif {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ui-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 300;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.notif.on { opacity: 1; }
+
+/* ── 채팅바 ── */
+.chatbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--ui-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  z-index: 200;
+  backdrop-filter: blur(6px);
+}
+.chat-input {
+  flex: 1;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: #fdfaf5;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input:focus { border-color: #b0a090; }
+.chat-btn {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: #f5f0e8;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.chat-btn:hover { background: #ede7da; }
+
+/* ── 음식 아이콘 ── */
+.food {
+  position: fixed;
+  font-size: 26px;
+  cursor: grab;
+  z-index: 60;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.12));
+  touch-action: none;
+  transition: transform 0.15s, filter 0.15s;
+  user-select: none;
+}
+.food.dragging {
+  cursor: grabbing;
+  z-index: 250;
+  transform: scale(1.3) rotate(-8deg) !important;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.2));
+}
+
+/* ── 페이지 요소 (고양이가 먹을 장식) ── */
+.pageel {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  transform-origin: bottom center;
+}
+.pageel .eicon { font-size: 24px; line-height: 1; }
+.pageel .elabel {
+  font-size: 9px;
+  color: #9a8a7a;
+  font-family: 'Courier New', monospace;
+  letter-spacing: -0.3px;
+}
+
+@keyframes eatPop {
+  0%   { opacity: 1; transform: scale(1) rotate(0deg); }
+  40%  { transform: scale(1.1) rotate(5deg); }
+  100% { opacity: 0; transform: scale(0) rotate(-15deg); }
+}
+.pageel.chomped { animation: eatPop 0.65s ease-in forwards; }
+
+/* ── 고양이 (바나나 냥이) ── */
+.cat {
+  position: fixed;
+  width: 68px;
+  height: 108px;
+  cursor: grab;
+  z-index: 50;
+}
+.cat.dragging-cat { cursor: grabbing; }
+.cat-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: bottom center;
+}
+
+/* 걷기 흔들림 */
+@keyframes waddle {
+  0%,100% { transform: rotate(-3deg) translateY(0); }
+  50%      { transform: rotate(3deg)  translateY(-4px); }
+}
+.cat.walk .cat-inner { animation: waddle 0.44s ease-in-out infinite; }
+
+/* 먹는 중 */
+@keyframes munch {
+  0%,100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.88) scaleX(1.08); }
+}
+.cat.eat .cat-inner { animation: munch 0.22s ease-in-out infinite; }
+
+/* 달리기 — 빠른 흔들림 */
+@keyframes runBob {
+  0%,100% { transform: rotate(-8deg) translateY(0); }
+  50%      { transform: rotate(8deg)  translateY(-9px); }
+}
+.cat.run .cat-inner { animation: runBob 0.15s ease-in-out infinite; }
+
+@keyframes rl { 0%,100% { transform: rotate(-40deg); } 50% { transform: rotate(20deg); } }
+@keyframes rr { 0%,100% { transform: rotate(20deg);  } 50% { transform: rotate(-40deg); } }
+.cat.run .cat-paw.l { animation: rl 0.15s ease-in-out infinite; }
+.cat.run .cat-paw.r { animation: rr 0.15s ease-in-out infinite; }
+
+/* 크기 성장 래퍼 — 먹이 먹을 때마다 통통해짐 */
+.cat-scale {
+  width: 100%;
+  height: 100%;
+  transform-origin: bottom center;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 몸통 — 바나나 형태 */
+.cat-body {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 76px;
+  background: linear-gradient(158deg, #f5e055 5%, #e8c830 55%, #cfaa1a 100%);
+  border-radius: 48% 48% 38% 38% / 52% 52% 42% 42%;
+  box-shadow:
+    inset -5px -7px 14px rgba(0,0,0,0.09),
+    inset  4px  5px  8px rgba(255,240,150,0.35);
+}
+
+/* 꼭지 */
+.cat-stem {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 9px;
+  height: 18px;
+  background: linear-gradient(180deg, #4e2610 0%, #7a4a28 100%);
+  border-radius: 5px 5px 3px 3px;
+}
+
+/* 얼굴 */
+.cat-face {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 34px;
+  background: radial-gradient(ellipse at 42% 32%, #e8c09c 0%, #c89070 100%);
+  border-radius: 50% 50% 45% 45%;
+  z-index: 2;
+  overflow: visible;
+}
+
+/* 귀 */
+.cat-ear {
+  position: absolute;
+  top: -11px;
+  width: 0; height: 0;
+  border-left:   7px solid transparent;
+  border-right:  7px solid transparent;
+  border-bottom: 14px solid #c89070;
+  transition: transform 0.2s;
+}
+.cat-ear.l { left: 0; transform: rotate(-12deg); }
+.cat-ear.r { right: 0; transform: rotate(12deg); }
+
+/* 눈 */
+.cat-eyes {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 5px 0;
+}
+.cat-eye {
+  width: 8px; height: 8px;
+  background: #28180a;
+  border-radius: 50%;
+  position: relative;
+  transition: all 0.25s;
+}
+.cat-eye::after {
+  content: '';
+  position: absolute;
+  top: 1px; right: 1px;
+  width: 3px; height: 3px;
+  background: rgba(255,255,255,0.72);
+  border-radius: 50%;
+}
+
+/* 코 */
+.cat-nose {
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #c06070;
+  margin: 3px auto 0;
+}
+
+/* 입 */
+.cat-mouth {
+  width: 16px; height: 7px;
+  border-bottom: 1.5px solid #9a6858;
+  border-radius: 0 0 50% 50%;
+  margin: 2px auto 0;
+  transition: all 0.25s;
+}
+
+/* 발 */
+.cat-paw {
+  position: absolute;
+  bottom: 4px;
+  width: 12px; height: 9px;
+  background: #c09070;
+  border-radius: 50% 50% 42% 42%;
+  transition: transform 0.1s;
+}
+.cat-paw.l { left: 10px; }
+.cat-paw.r { right: 10px; }
+
+@keyframes wl { 0%,100% { transform: rotate(-18deg); } 50% { transform: rotate(6deg); } }
+@keyframes wr { 0%,100% { transform: rotate(6deg);   } 50% { transform: rotate(-18deg); } }
+.cat.walk .cat-paw.l { animation: wl 0.44s ease-in-out infinite; }
+.cat.walk .cat-paw.r { animation: wr 0.44s ease-in-out infinite; }
+
+/* ── 기분별 눈/입 변형 ── */
+.cat.happy .cat-eye {
+  height: 5px;
+  border-radius: 50% 50% 0 0;
+  background: #28180a;
+}
+.cat.happy .cat-mouth { border-bottom-color: #a06050; height: 10px; }
+
+.cat.hungry .cat-eye {
+  height: 6px;
+  border-radius: 40% 40% 60% 60%;
+  transform: translateY(2px);
+}
+.cat.hungry .cat-mouth {
+  border-radius: 50% 50% 0 0;
+  border-bottom: none;
+  border-top: 1.5px solid #9a6858;
+  margin-top: 5px;
+}
+
+.cat.scared .cat-eye {
+  width: 10px; height: 10px;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+}
+
+/* 쓰다듬기: 눈 감음 */
+.cat:hover .cat-eye {
+  width: 11px; height: 6px;
+  background: transparent;
+  border-top: 2.5px solid #28180a;
+  border-radius: 50% 50% 0 0;
+}
+.cat:hover .cat-eye::after { opacity: 0; }
+.cat:hover .cat-mouth {
+  height: 9px;
+  border-bottom-color: #b06858;
+  border-radius: 0 0 50% 50%;
+}
+
+/* ── 말풍선 ── */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-38%);
+  background: #fff;
+  border: 1px solid #d8d0c4;
+  border-radius: 14px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: #4a4038;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  z-index: 100;
+}
+.bubble::before {
+  content: '';
+  position: absolute;
+  top: 100%; left: 38%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #d8d0c4;
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 38%;
+  transform: translateX(-50%);
+  margin-top: -1px;
+  border: 6px solid transparent;
+  border-top-color: #fff;
+}
+.bubble.on { opacity: 1; }
+
+/* ── 파티클 ── */
+.ptcl {
+  position: fixed;
+  pointer-events: none;
+  font-size: 15px;
+  z-index: 400;
+  animation: floatUp 0.85s ease-out forwards;
+}
+@keyframes floatUp {
+  from { opacity: 1;  transform: translateY(0)    scale(1);   }
+  to   { opacity: 0;  transform: translateY(-46px) scale(0.6); }
+}
+
+/* ── 배경 장식들 ── */
+.bg-deco {
+  position: fixed;
+  pointer-events: none;
+  font-size: 28px;
+  opacity: 0.38;
+  user-select: none;
+  z-index: 1;
+}
+
+/* ── 페이지 요소 드래그 가능 ── */
+.pageel {
+  cursor: grab;
+  transition: transform 0.15s, filter 0.15s;
+}
+.pageel.dragging-now {
+  cursor: grabbing;
+  z-index: 80;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.22));
+  transform: scale(1.12) translateY(-4px);
+}
+.pageel:hover { filter: drop-shadow(0 3px 6px rgba(0,0,0,0.14)); }
+
+/* ── 날개 아이템 강조 ── */
+.food.wing-item {
+  font-size: 30px !important;
+  filter: drop-shadow(0 0 8px rgba(180,140,255,0.7)) drop-shadow(0 2px 5px rgba(0,0,0,0.12));
+  animation: wingGlow 1.4s ease-in-out infinite;
+}
+@keyframes wingGlow {
+  0%,100% { filter: drop-shadow(0 0 6px rgba(180,140,255,0.5)); }
+  50%      { filter: drop-shadow(0 0 16px rgba(180,140,255,0.9)) drop-shadow(0 0 6px rgba(255,200,255,0.6)); }
+}
+
+/* ── 날개 (cat-wings) ── */
+.cat-wings {
+  position: absolute;
+  top: 28px;
+  left: -16px;
+  right: -16px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s;
+  z-index: 3;
+  font-size: 22px;
+  line-height: 1;
+}
+.cat-wings .wing-l { transform: scaleX(-1); display: inline-block; }
+.cat-wings .wing-r { display: inline-block; }
+
+.cat.flying .cat-wings { opacity: 1; }
+
+@keyframes flapL {
+  0%,100% { transform: scaleX(-1) rotate(-18deg) translateY(0); }
+  50%      { transform: scaleX(-1) rotate(12deg)  translateY(-4px); }
+}
+@keyframes flapR {
+  0%,100% { transform: rotate(18deg)  translateY(0); }
+  50%      { transform: rotate(-12deg) translateY(-4px); }
+}
+.cat.flying .cat-wings .wing-l { animation: flapL 0.48s ease-in-out infinite; }
+.cat.flying .cat-wings .wing-r { animation: flapR 0.48s ease-in-out infinite; }
+
+/* ── 비행 중 몸통 float ── */
+@keyframes flyFloat {
+  0%,100% { transform: translateY(0)     rotate(-1.5deg); }
+  50%      { transform: translateY(-10px) rotate(1.5deg); }
+}
+.cat.flying      .cat-inner      { animation: flyFloat 2s   ease-in-out infinite; }
+.cat.flying.walk .cat-inner      { animation: flyFloat 1.3s ease-in-out infinite; }
+.cat.flying.run  .cat-inner      { animation: flyFloat 0.7s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<!-- 배경 -->
+<div class="bg-sky" id="bgSky"></div>
+
+<!-- 허드 -->
+<div class="hud">
+  <div class="hud-stat">🍽️<div class="bar-wrap"><div class="bar-fill" id="bHunger"></div></div></div>
+  <div class="hud-sep">·</div>
+  <div class="hud-stat">😊<div class="bar-wrap"><div class="bar-fill" id="bHappy"></div></div></div>
+  <div class="hud-sep">·</div>
+  <div class="hud-stat">💛<div class="bar-wrap"><div class="bar-fill" id="bAffect"></div></div></div>
+  <div class="hud-sep">·</div>
+  <div class="hud-lv" id="lvLabel">Lv.1</div>
+</div>
+
+<!-- 알림 -->
+<div class="notif" id="notif"></div>
+
+<!-- 고양이 -->
+<div class="cat" id="cat">
+  <div class="cat-scale" id="catScale">
+  <div class="cat-wings">
+    <span class="wing-l">🪽</span>
+    <span class="wing-r">🪽</span>
+  </div>
+  <div class="cat-inner" id="catInner">
+    <div class="cat-stem"></div>
+    <div class="cat-body">
+      <div class="cat-face">
+        <div class="cat-ear l"></div>
+        <div class="cat-ear r"></div>
+        <div class="cat-eyes">
+          <div class="cat-eye"></div>
+          <div class="cat-eye"></div>
+        </div>
+        <div class="cat-nose"></div>
+        <div class="cat-mouth"></div>
+      </div>
+    </div>
+    <div class="cat-paw l"></div>
+    <div class="cat-paw r"></div>
+  </div>
+  </div><!-- /cat-scale -->
+  <div class="bubble" id="bubble">meow</div>
+</div>
+
+<!-- 채팅바 -->
+<div class="chatbar">
+  <input class="chat-input" id="chatInput" type="text" placeholder="냥이한테 말 걸기... 👋">
+  <button class="chat-btn" id="chatBtn">전송</button>
+</div>
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════
+   상수
+════════════════════════════════════════ */
+const CAT_W = 68, CAT_H = 108;
+const CHAT_H = 52;
+const HUD_H  = 48;
+
+const FOOD_ICONS = ['🐟','🥩','🍗','🫙','🐠','🧀','🥚','🍤'];
+const MEOWS = [
+  'meow','mrrrow~','purrrr...','mew!','nya~','MREOW',
+  '...meow','purr purr','mrow?','nyaa~','purrr ♡',
+  'mew mew','...','meow!!','냥~','nyaaaa'
+];
+
+const PAGE_ITEMS = [
+  { icon:'🌱', label:'새싹'    },
+  { icon:'🪴', label:'화분'    },
+  { icon:'🗞️', label:'신문'    },
+  { icon:'🧃', label:'음료수'  },
+  { icon:'💌', label:'편지'    },
+  { icon:'🧸', label:'인형'    },
+  { icon:'🌂', label:'우산'    },
+  { icon:'🍂', label:'낙엽'    },
+  { icon:'🪨', label:'돌멩이'  },
+  { icon:'🎋', label:'대나무'  },
+  { icon:'🦋', label:'나비'    },
+  { icon:'🌾', label:'들풀'    },
+  { icon:'📦', label:'박스'    },
+  { icon:'🕯️', label:'촛불'    },
+];
+
+const CHAT_RULES = [
+  { keys:['밥','먹','배고','hungry'],         resp:['meow... 배고파 🍗','mew... 밥줘','...🍖']         },
+  { keys:['사랑','좋아','예뻐','귀여','love'], resp:['purrrr~ ♡','meow~ ♡♡','nyaa~ 💛']              },
+  { keys:['놀자','놀아','play'],              resp:['meow!! 🌟','nya!! 달려!','mrow! mrow!']          },
+  { keys:['자','졸려','sleep','피곤'],         resp:['zzz... purr','...zz','(눈 감음) purr']           },
+  { keys:['싫어','나빠','bad','저리'],         resp:['MREOW!! 😾','...hss','mrrr 😾']                 },
+  { keys:['안녕','hi','hello','하이','ㅎㅇ'],  resp:['meow~','nya! 반가워','...meow (인사)']           },
+  { keys:['이름','name','너 누구'],            resp:['냥이야 meow','...meow (나)','purr~ 냥']          },
+  { keys:['쓰다듬','만져','터치'],             resp:['purr purr ♡','meow~ 좋아','nyaa~~ 😸']          },
+];
+
+/* ════════════════════════════════════════
+   게임 상태
+════════════════════════════════════════ */
+const G = {
+  hunger: 80, happy: 62, affection: 28,
+  level: 1, xp: 0,
+  x: 0, y: 0,
+  vx: 0, vy: 0,
+  tx: 0, ty: 0,
+  walkTimer: 0,
+  mood: 'normal',
+  isEating: false,
+  eatTarget: null,
+  pageEls: [],      // { el, name, ex, ey }
+  catScale: 1.0,    // 먹이를 먹을수록 커짐
+  runUntil: 0,      // 달리기 종료 타임스탬프
+  isFlying: false,     // 날개 아이템으로 비행 중
+  flyUntil: 0,         // 비행 종료 타임스탬프
+  isBeingDragged: false, // 유저가 직접 드래그 중
+};
+
+/* ════════════════════════════════════════
+   DOM
+════════════════════════════════════════ */
+const cat       = document.getElementById('cat');
+const catScale  = document.getElementById('catScale');
+const catInner  = document.getElementById('catInner');
+const bubble    = document.getElementById('bubble');
+const notifEl   = document.getElementById('notif');
+const bHunger   = document.getElementById('bHunger');
+const bHappy    = document.getElementById('bHappy');
+const bAffect   = document.getElementById('bAffect');
+const lvLabel   = document.getElementById('lvLabel');
+const chatInput = document.getElementById('chatInput');
+const chatBtn   = document.getElementById('chatBtn');
+
+/* ════════════════════════════════════════
+   유틸
+════════════════════════════════════════ */
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const rand  = (lo, hi)    => lo + Math.random() * (hi - lo);
+const randInt = (lo, hi)  => Math.floor(rand(lo, hi + 1));
+const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
+
+/* 그라운드 Y (고양이 top 기준) */
+const groundY = () => window.innerHeight - CHAT_H - CAT_H - 2;
+const minX    = () => 8;
+const maxX    = () => window.innerWidth - CAT_W - 8;
+const minY    = () => HUD_H + 10;
+const maxY    = () => groundY();
+
+/* 말풍선 */
+let bubTimer = null;
+function say(txt, dur = 2600) {
+  bubble.textContent = txt;
+  bubble.classList.add('on');
+  clearTimeout(bubTimer);
+  bubTimer = setTimeout(() => bubble.classList.remove('on'), dur);
+}
+
+/* 알림 */
+let notifTimer = null;
+function notify(txt) {
+  notifEl.textContent = txt;
+  notifEl.classList.add('on');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => notifEl.classList.remove('on'), 3200);
+}
+
+/* 파티클 */
+function particle(x, y, emoji) {
+  const el = document.createElement('div');
+  el.className = 'ptcl';
+  el.textContent = emoji;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  el.style.marginLeft = (rand(-12, 12)) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+
+/* XP / 레벨 */
+function addXP(n) {
+  G.xp += n;
+  const need = G.level * 130;
+  if (G.xp >= need) {
+    G.xp -= need;
+    G.level++;
+    lvLabel.textContent = 'Lv.' + G.level;
+    notify('🎉 레벨업! Lv.' + G.level + ' 냥이가 더 커졌어요!');
+    say('meow!! ✨', 3500);
+    G.happy = clamp(G.happy + 20, 0, 100);
+  }
+}
+
+/* ════════════════════════════════════════
+   배경 장식
+════════════════════════════════════════ */
+function buildScene() {
+  // 구름
+  [
+    { w:92,  h:26, lp:'7%',  tp:'10%' },
+    { w:62,  h:20, lp:'38%', tp:'6%'  },
+    { w:78,  h:22, lp:'70%', tp:'14%' },
+  ].forEach(({ w, h, lp, tp }) => {
+    const c = document.createElement('div');
+    c.style.cssText = `
+      position:fixed; left:${lp}; top:${tp};
+      width:${w}px; height:${h}px;
+      background:rgba(255,255,255,0.52);
+      border-radius:${h}px;
+      pointer-events:none; z-index:1;
+    `;
+    document.body.appendChild(c);
+  });
+
+  // 고정 배경 요소 (나무, 집 등)
+  [
+    { t:'🌳', lp:'3%',  tp:'34%', s:42 },
+    { t:'🌲', lp:'88%', tp:'29%', s:35 },
+    { t:'🏠', lp:'78%', tp:'40%', s:30 },
+    { t:'🌼', lp:'50%', tp:'60%', s:19 },
+    { t:'🌿', lp:'20%', tp:'57%', s:17 },
+    { t:'🐦', lp:'60%', tp:'18%', s:16 },
+  ].forEach(({ t, lp, tp, s }) => {
+    const el = document.createElement('div');
+    el.className = 'bg-deco';
+    el.style.cssText = `left:${lp}; top:${tp}; font-size:${s}px;`;
+    el.textContent = t;
+    document.body.appendChild(el);
+  });
+}
+
+/* ════════════════════════════════════════
+   페이지 요소 (고양이가 먹을 수 있는 장식)
+════════════════════════════════════════ */
+function spawnPageEl(item) {
+  const el = document.createElement('div');
+  el.className = 'pageel';
+  const ex = rand(60, window.innerWidth - 80);
+  const ey = window.innerHeight - CHAT_H - 68;
+  el.style.left   = ex + 'px';
+  el.style.top    = ey + 'px';
+  el.style.zIndex = '10';
+  el.innerHTML = `<span class="eicon">${item.icon}</span><span class="elabel">${item.label}</span>`;
+  document.body.appendChild(el);
+
+  const pageObj = { el, name: item.label, ex, ey };
+  G.pageEls.push(pageObj);
+
+  // 드래그로 위치 이동 가능
+  function startPageDrag(clientX, clientY) {
+    const rect = el.getBoundingClientRect();
+    drag = { el, ox: clientX - rect.left, oy: clientY - rect.top, kind: 'page', pageObj };
+    el.classList.add('dragging-now');
+  }
+  el.addEventListener('mousedown', e => { e.preventDefault(); startPageDrag(e.clientX, e.clientY); });
+  el.addEventListener('touchstart', e => { e.preventDefault(); startPageDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+}
+
+function initPageEls() {
+  const items = [...PAGE_ITEMS].sort(() => Math.random() - 0.5).slice(0, 9);
+  items.forEach(spawnPageEl);
+}
+
+/* ════════════════════════════════════════
+   고양이 이동
+════════════════════════════════════════ */
+function newTarget() {
+  G.tx = rand(minX(), maxX());
+  if (G.isFlying) {
+    // 하늘 전체를 날아다님
+    G.ty = rand(minY() + 10, maxY());
+  } else {
+    // 지면 근처를 걸어다님
+    G.ty = rand(groundY() - 20, groundY() + 5);
+  }
+  G.walkTimer = rand(1800, 5500);
+}
+
+function updateMovement(dt) {
+  if (G.isBeingDragged) return; // 유저가 직접 끌고 있는 중
+  if (G.isEating && G.eatTarget) {
+    // 먹이 대상 쪽으로 이동
+    const dx = G.eatTarget.ex - G.x - CAT_W / 2;
+    const dy = G.eatTarget.ey - G.y - CAT_H / 2;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 55) {
+      doEat(G.eatTarget);
+      G.eatTarget = null;
+      return;
+    }
+    const spd = 75;
+    G.x += (dx / dist) * spd * (dt / 1000);
+    G.y += (dy / dist) * spd * (dt / 1000);
+    catInner.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+    applyCatPos();
+    return;
+  }
+
+  G.walkTimer -= dt;
+  if (G.walkTimer <= 0) newTarget();
+
+  const dx = G.tx - G.x;
+  const dy = G.ty - G.y;
+  const dist = Math.hypot(dx, dy);
+
+  const isRunning = Date.now() < G.runUntil;
+
+  if (dist > 10) {
+    const spd = isRunning ? 280 : 55;
+    G.vx = (dx / dist) * spd;
+    G.vy = (dy / dist) * spd;
+    catInner.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+    if (isRunning) {
+      cat.classList.add('run');
+      cat.classList.remove('walk');
+    } else {
+      cat.classList.remove('run');
+      cat.classList.add('walk');
+    }
+  } else {
+    G.vx *= 0.75;
+    G.vy *= 0.75;
+    cat.classList.remove('walk', 'run');
+  }
+
+  G.x = clamp(G.x + G.vx * (dt / 1000), minX(), maxX());
+  G.y = clamp(G.y + G.vy * (dt / 1000), minY(), maxY());
+  applyCatPos();
+}
+
+function applyCatPos() {
+  cat.style.left = G.x + 'px';
+  cat.style.top  = G.y + 'px';
+}
+
+/* ════════════════════════════════════════
+   배고프면 장식 먹기
+════════════════════════════════════════ */
+let lastEatTry = 0;
+
+function tryEatEl(now) {
+  if (G.hunger > 30) return;
+  if (G.isEating) return;
+  if (G.pageEls.length === 0) return;
+  if (now - lastEatTry < 7000) return;
+  lastEatTry = now;
+
+  // 가장 가까운 요소 탐색
+  const cx = G.x + CAT_W / 2;
+  const cy = G.y + CAT_H / 2;
+  let closest = null, minD = Infinity;
+  G.pageEls.forEach(p => {
+    const d = Math.hypot(p.ex - cx, p.ey - cy);
+    if (d < minD) { minD = d; closest = p; }
+  });
+
+  if (closest) {
+    G.isEating = true;
+    G.eatTarget = closest;
+    cat.classList.add('eat');
+  }
+}
+
+function doEat(target) {
+  const idx = G.pageEls.indexOf(target);
+  if (idx !== -1) G.pageEls.splice(idx, 1);
+
+  target.el.classList.add('chomped');
+  say('*냠냠* 🍴', 2000);
+  notify('냥이가 ' + target.name + '을(를) 먹어버렸어요! 😿');
+  G.hunger = clamp(G.hunger + 14, 0, 100);
+
+  setTimeout(() => {
+    target.el.remove();
+    G.isEating = false;
+    cat.classList.remove('eat');
+
+    // 잠시 후 다시 생성
+    const delay = rand(25000, 45000);
+    setTimeout(() => {
+      const item = pick(PAGE_ITEMS);
+      spawnPageEl(item);
+    }, delay);
+  }, 700);
+}
+
+/* ════════════════════════════════════════
+   통계 업데이트
+════════════════════════════════════════ */
+function updateStats(dt) {
+  const s = dt / 1000;
+  G.hunger    = clamp(G.hunger    - s * 0.58, 0, 100);
+  G.happy     = clamp(G.happy     - s * 0.22, 0, 100);
+  G.affection = clamp(G.affection - s * 0.035, 0, 100);
+
+  // 바 업데이트
+  bHunger.style.width = G.hunger    + '%';
+  bHappy.style.width  = G.happy     + '%';
+  bAffect.style.width = G.affection + '%';
+
+  bHunger.style.backgroundColor =
+    G.hunger < 20 ? '#e05040' : G.hunger < 45 ? '#f09040' : '#7cc860';
+  bHappy.style.backgroundColor  =
+    G.happy  < 20 ? '#e05040' : '#f0d040';
+  bAffect.style.backgroundColor = '#c080d8';
+
+  // 기분 결정
+  const prevMood = G.mood;
+  if (!G.isEating) {
+    if (G.hunger < 20)      G.mood = 'hungry';
+    else if (G.happy > 75)  G.mood = 'happy';
+    else                    G.mood = 'normal';
+  }
+
+  if (G.mood !== prevMood) applyMood();
+}
+
+function applyMood() {
+  cat.classList.remove('happy', 'hungry', 'scared');
+  if (G.mood === 'happy')  cat.classList.add('happy');
+  if (G.mood === 'hungry') cat.classList.add('hungry');
+}
+
+/* ════════════════════════════════════════
+   쓰다듬기 / 클릭 / 놀래키기
+════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   고양이 드래그
+════════════════════════════════════════ */
+let catDrag = null;
+let catDragMoved = false;
+
+cat.addEventListener('mousedown', e => {
+  if (e.button !== 0 || drag) return; // 음식 드래그 중이면 무시
+  catDrag = {
+    ox: e.clientX - G.x,
+    oy: e.clientY - G.y,
+    startX: e.clientX,
+    startY: e.clientY,
+  };
+  catDragMoved = false;
+});
+
+cat.addEventListener('touchstart', e => {
+  if (drag) return;
+  const t = e.touches[0];
+  catDrag = { ox: t.clientX - G.x, oy: t.clientY - G.y, startX: t.clientX, startY: t.clientY };
+  catDragMoved = false;
+}, { passive: true });
+
+/* ════════════════════════════════════════
+   쓰다듬기 / 클릭
+════════════════════════════════════════ */
+let lastPet = 0;
+cat.addEventListener('mousemove', e => {
+  const now = Date.now();
+  if (now - lastPet < 130) return;
+  lastPet = now;
+
+  G.happy      = clamp(G.happy      + 0.7,  0, 100);
+  G.affection  = clamp(G.affection  + 0.35, 0, 100);
+  addXP(1);
+
+  const ptcls = ['💛','✨','♡','~','★','•'];
+  particle(G.x + 12 + Math.random() * 42, G.y + 8 + Math.random() * 20, pick(ptcls));
+  if (Math.random() < 0.07) say('purrrr... ♡');
+});
+
+cat.addEventListener('click', () => {
+  if (catDragMoved) return; // 드래그였으면 클릭 무시
+  G.happy      = clamp(G.happy     + 7,  0, 100);
+  G.affection  = clamp(G.affection + 3,  0, 100);
+  addXP(9);
+  say(pick(MEOWS));
+});
+
+// 더블클릭: 놀래키기
+let lastDbClick = 0;
+cat.addEventListener('dblclick', e => {
+  e.preventDefault();
+  if (catDragMoved) return; // 드래그 끝에 발생한 dblclick 무시
+  const now = Date.now();
+  if (now - lastDbClick < 400) return;
+  lastDbClick = now;
+
+  G.mood = 'scared';
+  cat.classList.remove('happy', 'hungry', 'walk');
+  cat.classList.add('scared', 'run');
+  say('MREOW!! 😾', 1800);
+  G.happy = clamp(G.happy - 10, 0, 100);
+
+  // 화면 반대편으로 전력 질주
+  const fleeX = G.x < window.innerWidth / 2
+    ? rand(window.innerWidth * 0.6, maxX())
+    : rand(minX(), window.innerWidth * 0.4);
+  G.tx = fleeX;
+  G.ty = rand(groundY() - 15, groundY());
+  G.walkTimer = 80;
+  G.runUntil  = Date.now() + 1800; // 1.8초간 달리기
+
+  setTimeout(() => {
+    cat.classList.remove('scared', 'run');
+    G.mood = 'normal';
+  }, 1800);
+});
+
+/* ════════════════════════════════════════
+   음식 드래그 앤 드롭
+════════════════════════════════════════ */
+let drag = null;
+
+function spawnFood() {
+  const el = document.createElement('div');
+  el.className = 'food';
+  el.textContent = pick(FOOD_ICONS);
+
+  const fx = rand(50, window.innerWidth - 90);
+  const fy = rand(HUD_H + 28, window.innerHeight - CHAT_H - 60);
+  el.style.left = fx + 'px';
+  el.style.top  = fy + 'px';
+
+  // 등장 애니메이션
+  el.style.opacity   = '0';
+  el.style.transform = 'scale(0.2) rotate(25deg)';
+  el.style.transition = 'opacity 0.45s, transform 0.45s';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.opacity   = '1';
+    el.style.transform = 'scale(1) rotate(0deg)';
+  }));
+
+  // 마우스/터치 드래그 시작
+  function startDrag(clientX, clientY) {
+    const rect = el.getBoundingClientRect();
+    drag = { el, ox: clientX - rect.left, oy: clientY - rect.top, kind: 'food' };
+    el.classList.add('dragging');
+    el.style.transition = 'transform 0.1s';
+  }
+  el.addEventListener('mousedown',  e => { e.preventDefault(); startDrag(e.clientX, e.clientY); });
+  el.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; startDrag(t.clientX, t.clientY); }, { passive: false });
+
+  // 25초 후 자동 제거
+  const timer = setTimeout(() => el.remove(), 25000);
+  el._timer = timer;
+}
+
+document.addEventListener('mousemove', e => {
+  // 음식/장식 드래그
+  if (drag) {
+    drag.el.style.left = (e.clientX - drag.ox) + 'px';
+    drag.el.style.top  = (e.clientY - drag.oy) + 'px';
+    return;
+  }
+  // 고양이 드래그
+  if (catDrag) {
+    const dx = e.clientX - catDrag.startX;
+    const dy = e.clientY - catDrag.startY;
+    if (Math.hypot(dx, dy) > 6) catDragMoved = true;
+    if (catDragMoved) {
+      G.isBeingDragged = true;
+      G.x = clamp(e.clientX - catDrag.ox, minX(), maxX());
+      G.y = clamp(e.clientY - catDrag.oy, minY(), maxY());
+      applyCatPos();
+      cat.classList.add('dragging-cat', 'walk');
+      cat.classList.remove('run');
+    }
+  }
+});
+document.addEventListener('touchmove', e => {
+  if (!drag && !catDrag) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  if (drag) {
+    drag.el.style.left = (t.clientX - drag.ox) + 'px';
+    drag.el.style.top  = (t.clientY - drag.oy) + 'px';
+  } else if (catDrag) {
+    catDragMoved = true;
+    G.isBeingDragged = true;
+    G.x = clamp(t.clientX - catDrag.ox, minX(), maxX());
+    G.y = clamp(t.clientY - catDrag.oy, minY(), maxY());
+    applyCatPos();
+  }
+}, { passive: false });
+
+function endDrag() {
+  if (!drag) return;
+  const { el: dEl, kind, pageObj } = drag;
+  drag = null;
+
+  if (kind === 'food') {
+    dEl.classList.remove('dragging');
+    dEl.style.transition = 'transform 0.15s';
+    const fr = dEl.getBoundingClientRect();
+    const cr = catScale.getBoundingClientRect(); // 실제 시각적 크기 기준으로 판정
+    const hit = !(fr.right < cr.left || fr.left > cr.right ||
+                  fr.bottom < cr.top  || fr.top  > cr.bottom);
+    if (hit) feedCat(dEl);
+
+  } else if (kind === 'page') {
+    dEl.classList.remove('dragging-now');
+    // 드롭된 위치로 pageObj 좌표 업데이트 (먹기 탐색에 반영)
+    pageObj.ex = parseFloat(dEl.style.left) + 12;
+    pageObj.ey = parseFloat(dEl.style.top)  + 20;
+  }
+}
+function onPointerUp() {
+  endDrag();
+  // 고양이 드래그 종료
+  if (catDrag) {
+    catDrag = null;
+    G.isBeingDragged = false;
+    cat.classList.remove('dragging-cat');
+    // 놓은 위치를 새 목표로 설정하고 자연스럽게 재개
+    G.tx = G.x;
+    G.ty = G.y;
+    G.walkTimer = rand(800, 2500);
+  }
+}
+document.addEventListener('mouseup',  onPointerUp);
+document.addEventListener('touchend', onPointerUp);
+
+function feedCat(foodEl) {
+  clearTimeout(foodEl._timer);
+
+  // ── 날개 아이템 특별 처리 ──
+  if (foodEl.classList.contains('wing-item')) {
+    G.isFlying = true;
+    G.flyUntil = Date.now() + 50000; // 50초 비행
+    cat.classList.add('flying');
+    say('nya~!! 🪽✨ 하늘이다!!', 3500);
+    notify('날개를 달았어요! 🪽 50초 동안 하늘을 날아요~');
+    addXP(60);
+    newTarget(); // 즉시 하늘로 향하는 새 목표
+    const wingPtcls = ['🪽','✨','⭐','💫','🌟'];
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => particle(G.x + 5 + Math.random() * 60, G.y + Math.random() * 80, pick(wingPtcls)), i * 90);
+    }
+    foodEl.style.transition = 'all 0.3s';
+    foodEl.style.transform  = 'scale(0) rotate(720deg)';
+    foodEl.style.opacity    = '0';
+    setTimeout(() => foodEl.remove(), 350);
+    return;
+  }
+
+  // ── 일반 먹이 ──
+  G.hunger    = clamp(G.hunger    + 30, 0, 100);
+  G.happy     = clamp(G.happy     + 14, 0, 100);
+  G.affection = clamp(G.affection +  6, 0, 100);
+  addXP(28);
+
+  // 고양이 크기 증가 (최대 2.6배)
+  G.catScale = G.catScale + 0.35; // 먹을 때마다 확실하게 쑥쑥 성장
+  catScale.style.transform = `scale(${G.catScale.toFixed(2)})`;
+
+  say('*냠냠* meow~ 😋', 2500);
+  const emojis = ['💛','✨','🌟','♡','🎵'];
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => particle(G.x + 8 + Math.random() * 52, G.y + 5, pick(emojis)), i * 140);
+  }
+
+  foodEl.style.transition = 'all 0.28s';
+  foodEl.style.transform  = 'scale(0) rotate(40deg)';
+  foodEl.style.opacity    = '0';
+  setTimeout(() => foodEl.remove(), 300);
+}
+
+// 일반 음식: 5초마다
+setInterval(spawnFood, 5000);
+setTimeout(spawnFood, 600);
+
+// ── 날개 아이템 스폰 ──
+function spawnWingItem() {
+  if (G.isFlying) return; // 이미 날고 있으면 스킵
+  const el = document.createElement('div');
+  el.className = 'food wing-item';
+  el.textContent = '🪽';
+  const fx = rand(80, window.innerWidth - 120);
+  const fy = rand(HUD_H + 40, window.innerHeight - CHAT_H - 100);
+  el.style.left = fx + 'px';
+  el.style.top  = fy + 'px';
+  el.style.opacity   = '0';
+  el.style.transform = 'scale(0.2) rotate(25deg)';
+  el.style.transition = 'opacity 0.5s, transform 0.5s';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.opacity   = '1';
+    el.style.transform = 'scale(1) rotate(0deg)';
+  }));
+  function startDrag(clientX, clientY) {
+    const rect = el.getBoundingClientRect();
+    drag = { el, ox: clientX - rect.left, oy: clientY - rect.top, kind: 'food' };
+    el.classList.add('dragging');
+    el.style.transition = 'transform 0.1s';
+  }
+  el.addEventListener('mousedown',  e => { e.preventDefault(); startDrag(e.clientX, e.clientY); });
+  el.addEventListener('touchstart', e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  const timer = setTimeout(() => el.remove(), 30000);
+  el._timer = timer;
+  notify('✨ 날개 아이템이 나타났어요! 고양이에게 줘보세요 🪽');
+}
+setInterval(spawnWingItem, 60000); // 60초마다
+setTimeout(spawnWingItem, 18000);  // 처음 18초 후
+
+/* ════════════════════════════════════════
+   채팅
+════════════════════════════════════════ */
+function sendChat() {
+  const txt = chatInput.value.trim();
+  if (!txt) return;
+  chatInput.value = '';
+
+  let resp = pick(MEOWS);
+  for (const { keys, resp: resps } of CHAT_RULES) {
+    if (keys.some(k => txt.includes(k))) {
+      resp = pick(resps);
+      break;
+    }
+  }
+
+  setTimeout(() => say(resp, 3200), 180);
+  addXP(5);
+
+  // 채팅 보내면 고양이 쳐다봄
+  G.happy = clamp(G.happy + 2, 0, 100);
+}
+
+chatBtn.addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+/* ════════════════════════════════════════
+   메인 루프
+════════════════════════════════════════ */
+let lastT = performance.now();
+
+function checkFlyExpiry() {
+  if (G.isFlying && Date.now() > G.flyUntil) {
+    G.isFlying = false;
+    cat.classList.remove('flying');
+    say('mew... 🪽 날개가 사라졌어', 2800);
+    newTarget(); // 지면으로 서서히 복귀
+  }
+}
+
+function loop(now) {
+  const dt = Math.min(now - lastT, 100);
+  lastT = now;
+
+  updateMovement(dt);
+  updateStats(dt);
+  tryEatEl(now);
+  checkFlyExpiry();
+
+  requestAnimationFrame(loop);
+}
+
+/* ── 초기화 ── */
+buildScene();
+initPageEls();
+
+G.x = rand(150, window.innerWidth - 250);
+G.y = groundY();
+applyCatPos();
+newTarget();
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
