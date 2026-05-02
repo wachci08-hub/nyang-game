@@ -23,30 +23,32 @@ body {
   background: var(--sky);
   font-family: 'Courier New', Courier, monospace;
   position: relative;
+  user-select: none;   /* 더블클릭 선택 방지 */
+  -webkit-user-select: none;
 }
 
 /* ── 배경 ── */
 .bg-sky {
   position: fixed;
   inset: 0;
-  background: linear-gradient(180deg, #d8e8f8 0%, #e8f0f8 55%, #cfc4ae 55%, #bfb49e 100%);
+  background-image: url('배경.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   pointer-events: none;
   z-index: 0;
 }
 
-/* 보도블록 라인 */
-.bg-sky::after {
+/* 사진 위에 살짝 밝은 오버레이 (UI 가독성 확보) */
+.bg-sky::before {
   content: '';
   position: absolute;
-  left: 0; right: 0;
-  bottom: 52px;
-  height: 3px;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(160,148,130,0.5) 0px, rgba(160,148,130,0.5) 40px,
-    transparent 40px, transparent 80px
-  );
+  inset: 0;
+  background: rgba(255,255,255,0.18);
 }
+
+/* 이미지/요소 드래그·선택 방지 */
+img, .food, .pageel, .cat { -webkit-user-drag: none; }
 
 /* ── 허드 (상단 상태창) ── */
 .hud {
@@ -520,6 +522,7 @@ const G = {
   isFlying: false,     // 날개 아이템으로 비행 중
   flyUntil: 0,         // 비행 종료 타임스탬프
   isBeingDragged: false, // 유저가 직접 드래그 중
+  postFeedUntil: 0,    // 밥 먹은 후 3초간 평상시 이미지 유지
 };
 
 /* ════════════════════════════════════════
@@ -915,9 +918,9 @@ function updateStats(dt) {
     G.happy  < 20 ? '#e05040' : '#f0d040';
   bAffect.style.backgroundColor = '#c080d8';
 
-  // 기분 결정
+  // 기분 결정 (scared 상태는 달리기가 끝날 때까지 유지)
   const prevMood = G.mood;
-  if (!G.isEating) {
+  if (!G.isEating && G.mood !== 'scared') {
     if (G.hunger < 20)      G.mood = 'hungry';
     else if (G.happy > 75)  G.mood = 'happy';
     else                    G.mood = 'normal';
@@ -931,13 +934,10 @@ function applyMood() {
   if (G.mood === 'happy')  cat.classList.add('happy');
   if (G.mood === 'hungry') cat.classList.add('hungry');
   if (G.mood === 'scared') cat.classList.add('scared');
-  if (!G.isEating) {
-    // 배고픔이 아주 심하면 cry2 이미지
-    const img = (G.mood === 'hungry' && G.hunger < 12)
-      ? '바나나캣(cry2) 1.png'
-      : (CAT_IMGS[G.mood] || CAT_IMGS.normal);
-    setCatImg(img);
-  }
+  if (G.isEating || G.isBeingDragged) return; // 다른 상태가 이미지 담당
+  // 밥 먹은 직후 3초: 평상시 이미지
+  if (Date.now() < G.postFeedUntil) { setCatImg(CAT_IMGS.normal); return; }
+  setCatImg(CAT_IMGS[G.mood] || CAT_IMGS.normal);
 }
 
 /* ════════════════════════════════════════
@@ -1050,6 +1050,11 @@ function spawnFood() {
     el.style.transform = 'scale(1) rotate(0deg)';
   }));
 
+  // 음식 등장 → 고양이 즉시 우는 이미지
+  if (G.mood !== 'scared' && !G.isEating && !G.isBeingDragged) {
+    setCatImg('바나나캣(cry) 1.png');
+  }
+
   // 마우스/터치 드래그 시작
   function startDrag(clientX, clientY) {
     const rect = el.getBoundingClientRect();
@@ -1060,8 +1065,12 @@ function spawnFood() {
   el.addEventListener('mousedown',  e => { e.preventDefault(); startDrag(e.clientX, e.clientY); });
   el.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; startDrag(t.clientX, t.clientY); }, { passive: false });
 
-  // 25초 후 자동 제거
-  const timer = setTimeout(() => el.remove(), 25000);
+  // 25초 후 자동 제거 + 이미지 복귀
+  const timer = setTimeout(() => {
+    el.remove();
+    // 화면에 음식이 더 없으면 기분에 맞는 이미지로 복귀
+    if (document.querySelectorAll('.food').length === 0) applyMood();
+  }, 25000);
   el._timer = timer;
 }
 
@@ -1082,7 +1091,10 @@ document.addEventListener('mousemove', e => {
   if (catDrag) {
     const dx = e.clientX - catDrag.startX;
     const dy = e.clientY - catDrag.startY;
-    if (Math.hypot(dx, dy) > 6) catDragMoved = true;
+    if (!catDragMoved && Math.hypot(dx, dy) > 6) {
+      catDragMoved = true;
+      setCatImg('바나나캣(cry2) 1.png'); // 드래그 시작 → 눈물 폭발
+    }
     if (catDragMoved) {
       G.isBeingDragged = true;
       G.x = clamp(e.clientX - catDrag.ox, minX(), maxX());
@@ -1101,7 +1113,10 @@ document.addEventListener('touchmove', e => {
     drag.el.style.left = (t.clientX - drag.ox) + 'px';
     drag.el.style.top  = (t.clientY - drag.oy) + 'px';
   } else if (catDrag) {
-    catDragMoved = true;
+    if (!catDragMoved) {
+      catDragMoved = true;
+      setCatImg('바나나캣(cry2) 1.png');
+    }
     G.isBeingDragged = true;
     G.x = clamp(t.clientX - catDrag.ox, minX(), maxX());
     G.y = clamp(t.clientY - catDrag.oy, minY(), maxY());
@@ -1137,6 +1152,8 @@ function onPointerUp() {
     catDrag = null;
     G.isBeingDragged = false;
     cat.classList.remove('dragging-cat');
+    // 드래그 끝 → 평상시 이미지로 복귀
+    setCatImg(CAT_IMGS[G.mood] || CAT_IMGS.normal);
     // 놓은 위치를 새 목표로 설정하고 자연스럽게 재개
     G.tx = G.x;
     G.ty = G.y;
@@ -1179,9 +1196,10 @@ function feedCat(foodEl) {
   G.catScale = G.catScale + 0.35; // 먹을 때마다 확실하게 쑥쑥 성장
   catScale.style.transform = `scale(${G.catScale.toFixed(2)})`;
 
-  // 먹는 이미지 잠깐 표시
+  // 먹는 이미지 350ms 순간 플래시 → 3초 평상시
   setCatImg('음식 먹음 1.png');
-  setTimeout(() => setCatImg(CAT_IMGS[G.mood] || CAT_IMGS.normal), 1800);
+  G.postFeedUntil = Date.now() + 3350;
+  setTimeout(() => setCatImg(CAT_IMGS.normal), 350);
 
   say('*냠냠* meow~ 😋', 2500);
   const emojis = ['💛','✨','🌟','♡','🎵'];
