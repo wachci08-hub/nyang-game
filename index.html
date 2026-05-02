@@ -511,6 +511,43 @@ body {
 .cat.flying      .cat-inner      { animation: flyFloat 2s   ease-in-out infinite; }
 .cat.flying.walk .cat-inner      { animation: flyFloat 1.3s ease-in-out infinite; }
 .cat.flying.run  .cat-inner      { animation: flyFloat 0.7s ease-in-out infinite; }
+
+/* ── 똥 ── */
+.poop {
+  position: fixed;
+  font-size: 26px;
+  z-index: 45;
+  user-select: none;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.18));
+  transition: transform 0.18s;
+  cursor: none;          /* 빗자루 커서로 대체 */
+}
+.poop:hover { transform: scale(1.2) rotate(-6deg); }
+
+@keyframes sweepAway {
+  0%   { transform: scale(1)   translateX(0)    rotate(0deg);   opacity: 1; }
+  100% { transform: scale(0.1) translateX(70px) rotate(30deg);  opacity: 0; }
+}
+.poop.swept {
+  animation: sweepAway 0.38s ease-out forwards;
+  pointer-events: none;
+}
+
+/* 빗자루 커서 */
+#broomCursor {
+  position: fixed;
+  font-size: 30px;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  transform: rotate(-35deg) scaleX(-1);
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+  transition: none;
+}
+/* 빗자루 모드일 때 전체 커서 숨기기 */
+body.broom-mode,
+body.broom-mode * { cursor: none !important; }
 </style>
 </head>
 <body>
@@ -559,6 +596,9 @@ body {
   </div><!-- /cat-scale -->
   <div class="bubble" id="bubble">meow</div>
 </div>
+
+<!-- 빗자루 커서 -->
+<div id="broomCursor">🧹</div>
 
 <!-- 채팅바 -->
 <div class="chatbar">
@@ -886,6 +926,9 @@ function doEat(target) {
   notify('냥이가 ' + target.name + '을(를) 먹어버렸어요! 😿');
   G.hunger = clamp(G.hunger + 14, 0, 100);
 
+  // 장식 먹어도 나중에 💩
+  setTimeout(spawnPoop, rand(20000, 40000));
+
   setTimeout(() => {
     target.el.remove();
     G.isEating = false;
@@ -898,6 +941,96 @@ function doEat(target) {
       spawnPageEl(item);
     }, delay);
   }, 700);
+}
+
+/* ════════════════════════════════════════
+   똥 스폰 / 치우기
+════════════════════════════════════════ */
+const broomCursorEl = document.getElementById('broomCursor');
+let poopHoverCount = 0;
+
+function enterBroomMode() {
+  poopHoverCount++;
+  if (poopHoverCount === 1) {
+    document.body.classList.add('broom-mode');
+    broomCursorEl.style.display = 'block';
+  }
+}
+function exitBroomMode() {
+  poopHoverCount = Math.max(0, poopHoverCount - 1);
+  if (poopHoverCount === 0) {
+    document.body.classList.remove('broom-mode');
+    broomCursorEl.style.display = 'none';
+  }
+}
+
+function spawnPoop() {
+  // 화면 밖이거나 이미 너무 많으면 skip
+  if (document.querySelectorAll('.poop').length >= 6) return;
+
+  const el = document.createElement('div');
+  el.className = 'poop';
+  el.textContent = '💩';
+
+  // 고양이 엉덩이 바로 아래에서 시작해서 바닥까지 떨어짐
+  const px     = clamp(G.x + CAT_W / 2 - 13 + rand(-10, 10), 12, window.innerWidth - 44);
+  const startY = G.y + CAT_H - 18;                        // 고양이 발 아래
+  const landY  = window.innerHeight - CHAT_H - 40;        // 바닥 착지 위치
+
+  el.style.left      = px + 'px';
+  el.style.top       = startY + 'px';
+  el.style.opacity   = '0';
+  el.style.transform = 'scale(0.4)';
+  el.style.transition = 'none';
+  document.body.appendChild(el);
+
+  // 다음 프레임에 낙하 트랜지션 시작
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.transition = 'opacity 0.25s, transform 0.45s, top 0.45s cubic-bezier(0.4, 0, 0.8, 1)';
+    el.style.opacity   = '1';
+    el.style.transform = 'scale(1)';
+    el.style.top       = landY + 'px';
+  }));
+
+  // 크기 줄이기 (밥 하나 분량 마이너스, 최소 1.0)
+  G.catScale = Math.max(1.0, G.catScale - 0.35);
+  catScale.style.transform = `scale(${G.catScale.toFixed(2)})`;
+
+  say('...💩', 2200);
+  notify('냥이가 💩을 쌌어요! 빗자루로 클릭해서 치워주세요~');
+
+  // 빗자루 커서: 호버 진입/이탈
+  el.addEventListener('mouseenter', enterBroomMode);
+  el.addEventListener('mouseleave', exitBroomMode);
+
+  // 클릭 / 터치로 치우기
+  el.addEventListener('click',      () => cleanPoop(el));
+  el.addEventListener('touchstart', e  => { e.preventDefault(); cleanPoop(el); }, { passive: false });
+}
+
+function cleanPoop(el) {
+  if (el._swept) return;
+  el._swept = true;
+
+  // 빗자루 모드 해제
+  exitBroomMode();
+  poopHoverCount = 0;   // 혹시 중복 카운트된 경우 초기화
+  document.body.classList.remove('broom-mode');
+  broomCursorEl.style.display = 'none';
+
+  el.classList.add('swept');
+
+  // 청소 파티클
+  const bx = parseFloat(el.style.left) + 13;
+  const by = parseFloat(el.style.top);
+  particle(bx,      by, '✨');
+  particle(bx - 8,  by, '🌟');
+  particle(bx + 8,  by, '💨');
+
+  G.happy = clamp(G.happy + 5, 0, 100);
+  say('meow~ 감사해 ♡', 2200);
+
+  setTimeout(() => el.remove(), 450);
 }
 
 /* ════════════════════════════════════════
@@ -1061,6 +1194,12 @@ function spawnFood() {
 }
 
 document.addEventListener('mousemove', e => {
+  // 빗자루 커서 위치 추적 (핸들 끝이 커서에 오도록 오프셋)
+  if (poopHoverCount > 0) {
+    broomCursorEl.style.left = (e.clientX - 6)  + 'px';
+    broomCursorEl.style.top  = (e.clientY - 28) + 'px';
+  }
+
   // 음식/장식 드래그
   if (drag) {
     drag.el.style.left = (e.clientX - drag.ox) + 'px';
@@ -1173,6 +1312,9 @@ function feedCat(foodEl) {
   for (let i = 0; i < 5; i++) {
     setTimeout(() => particle(G.x + 8 + Math.random() * 52, G.y + 5, pick(emojis)), i * 140);
   }
+
+  // 먹고 나서 시간이 지나면 💩
+  setTimeout(spawnPoop, rand(18000, 38000));
 
   foodEl.style.transition = 'all 0.28s';
   foodEl.style.transform  = 'scale(0) rotate(40deg)';
