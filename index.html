@@ -190,8 +190,8 @@ body {
 /* ── 고양이 (바나나 냥이) ── */
 .cat {
   position: fixed;
-  width: 68px;
-  height: 108px;
+  width: 90px;
+  height: 120px;
   cursor: grab;
   z-index: 50;
 }
@@ -237,155 +237,19 @@ body {
   transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* 몸통 — 바나나 형태 */
-.cat-body {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 44px;
-  height: 76px;
-  background: linear-gradient(158deg, #f5e055 5%, #e8c830 55%, #cfaa1a 100%);
-  border-radius: 48% 48% 38% 38% / 52% 52% 42% 42%;
-  box-shadow:
-    inset -5px -7px 14px rgba(0,0,0,0.09),
-    inset  4px  5px  8px rgba(255,240,150,0.35);
+/* ── 고양이 이미지 ── */
+.cat-img {
+  width: 90px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  transform-origin: bottom center;
+  transition: filter 0.2s;
 }
-
-/* 꼭지 */
-.cat-stem {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 9px;
-  height: 18px;
-  background: linear-gradient(180deg, #4e2610 0%, #7a4a28 100%);
-  border-radius: 5px 5px 3px 3px;
-}
-
-/* 얼굴 */
-.cat-face {
-  position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 36px;
-  height: 34px;
-  background: radial-gradient(ellipse at 42% 32%, #e8c09c 0%, #c89070 100%);
-  border-radius: 50% 50% 45% 45%;
-  z-index: 2;
-  overflow: visible;
-}
-
-/* 귀 */
-.cat-ear {
-  position: absolute;
-  top: -11px;
-  width: 0; height: 0;
-  border-left:   7px solid transparent;
-  border-right:  7px solid transparent;
-  border-bottom: 14px solid #c89070;
-  transition: transform 0.2s;
-}
-.cat-ear.l { left: 0; transform: rotate(-12deg); }
-.cat-ear.r { right: 0; transform: rotate(12deg); }
-
-/* 눈 */
-.cat-eyes {
-  display: flex;
-  justify-content: space-around;
-  padding: 8px 5px 0;
-}
-.cat-eye {
-  width: 8px; height: 8px;
-  background: #28180a;
-  border-radius: 50%;
-  position: relative;
-  transition: all 0.25s;
-}
-.cat-eye::after {
-  content: '';
-  position: absolute;
-  top: 1px; right: 1px;
-  width: 3px; height: 3px;
-  background: rgba(255,255,255,0.72);
-  border-radius: 50%;
-}
-
-/* 코 */
-.cat-nose {
-  width: 0; height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid #c06070;
-  margin: 3px auto 0;
-}
-
-/* 입 */
-.cat-mouth {
-  width: 16px; height: 7px;
-  border-bottom: 1.5px solid #9a6858;
-  border-radius: 0 0 50% 50%;
-  margin: 2px auto 0;
-  transition: all 0.25s;
-}
-
-/* 발 */
-.cat-paw {
-  position: absolute;
-  bottom: 4px;
-  width: 12px; height: 9px;
-  background: #c09070;
-  border-radius: 50% 50% 42% 42%;
-  transition: transform 0.1s;
-}
-.cat-paw.l { left: 10px; }
-.cat-paw.r { right: 10px; }
-
-@keyframes wl { 0%,100% { transform: rotate(-18deg); } 50% { transform: rotate(6deg); } }
-@keyframes wr { 0%,100% { transform: rotate(6deg);   } 50% { transform: rotate(-18deg); } }
-.cat.walk .cat-paw.l { animation: wl 0.44s ease-in-out infinite; }
-.cat.walk .cat-paw.r { animation: wr 0.44s ease-in-out infinite; }
-
-/* ── 기분별 눈/입 변형 ── */
-.cat.happy .cat-eye {
-  height: 5px;
-  border-radius: 50% 50% 0 0;
-  background: #28180a;
-}
-.cat.happy .cat-mouth { border-bottom-color: #a06050; height: 10px; }
-
-.cat.hungry .cat-eye {
-  height: 6px;
-  border-radius: 40% 40% 60% 60%;
-  transform: translateY(2px);
-}
-.cat.hungry .cat-mouth {
-  border-radius: 50% 50% 0 0;
-  border-bottom: none;
-  border-top: 1.5px solid #9a6858;
-  margin-top: 5px;
-}
-
-.cat.scared .cat-eye {
-  width: 10px; height: 10px;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
-}
-
-/* 쓰다듬기: 눈 감음 */
-.cat:hover .cat-eye {
-  width: 11px; height: 6px;
-  background: transparent;
-  border-top: 2.5px solid #28180a;
-  border-radius: 50% 50% 0 0;
-}
-.cat:hover .cat-eye::after { opacity: 0; }
-.cat:hover .cat-mouth {
-  height: 9px;
-  border-bottom-color: #b06858;
-  border-radius: 0 0 50% 50%;
-}
+.cat-img.flip { transform: scaleX(-1); }
+.cat:hover .cat-img { filter: brightness(1.1) saturate(1.15); }
 
 /* ── 말풍선 ── */
 .bubble {
@@ -577,21 +441,7 @@ body.broom-mode * { cursor: none !important; }
     <span class="wing-r">🪽</span>
   </div>
   <div class="cat-inner" id="catInner">
-    <div class="cat-stem"></div>
-    <div class="cat-body">
-      <div class="cat-face">
-        <div class="cat-ear l"></div>
-        <div class="cat-ear r"></div>
-        <div class="cat-eyes">
-          <div class="cat-eye"></div>
-          <div class="cat-eye"></div>
-        </div>
-        <div class="cat-nose"></div>
-        <div class="cat-mouth"></div>
-      </div>
-    </div>
-    <div class="cat-paw l"></div>
-    <div class="cat-paw r"></div>
+    <img class="cat-img" id="catImg" src="바나나캣 1.png" alt="냥이">
   </div>
   </div><!-- /cat-scale -->
   <div class="bubble" id="bubble">meow</div>
@@ -612,7 +462,7 @@ body.broom-mode * { cursor: none !important; }
 /* ════════════════════════════════════════
    상수
 ════════════════════════════════════════ */
-const CAT_W = 68, CAT_H = 108;
+const CAT_W = 90, CAT_H = 120;
 const CHAT_H = 52;
 const HUD_H  = 48;
 
@@ -678,7 +528,17 @@ const G = {
 const cat       = document.getElementById('cat');
 const catScale  = document.getElementById('catScale');
 const catInner  = document.getElementById('catInner');
+const catImg    = document.getElementById('catImg');
 const bubble    = document.getElementById('bubble');
+
+/* 기분별 이미지 매핑 */
+const CAT_IMGS = {
+  normal:  '바나나캣 1.png',
+  happy:   '바나나캣 1.png',
+  hungry:  '바나나캣(cry) 1.png',
+  scared:  '바나나캣(화남) 1.png',
+};
+function setCatImg(src) { catImg.src = src; }
 const notifEl   = document.getElementById('notif');
 const bHunger   = document.getElementById('bHunger');
 const bHappy    = document.getElementById('bHappy');
@@ -847,7 +707,7 @@ function updateMovement(dt) {
     const spd = 75;
     G.x += (dx / dist) * spd * (dt / 1000);
     G.y += (dy / dist) * spd * (dt / 1000);
-    catInner.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+    catImg.classList.toggle('flip', dx < 0);
     applyCatPos();
     return;
   }
@@ -865,7 +725,7 @@ function updateMovement(dt) {
     const spd = isRunning ? 280 : 55;
     G.vx = (dx / dist) * spd;
     G.vy = (dy / dist) * spd;
-    catInner.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+    catImg.classList.toggle('flip', dx < 0);
     if (isRunning) {
       cat.classList.add('run');
       cat.classList.remove('walk');
@@ -914,6 +774,7 @@ function tryEatEl(now) {
     G.isEating = true;
     G.eatTarget = closest;
     cat.classList.add('eat');
+    setCatImg('음식 먹음 1.png');
   }
 }
 
@@ -933,6 +794,7 @@ function doEat(target) {
     target.el.remove();
     G.isEating = false;
     cat.classList.remove('eat');
+    setCatImg(CAT_IMGS[G.mood] || CAT_IMGS.normal);
 
     // 잠시 후 다시 생성
     const delay = rand(25000, 45000);
@@ -1068,6 +930,14 @@ function applyMood() {
   cat.classList.remove('happy', 'hungry', 'scared');
   if (G.mood === 'happy')  cat.classList.add('happy');
   if (G.mood === 'hungry') cat.classList.add('hungry');
+  if (G.mood === 'scared') cat.classList.add('scared');
+  if (!G.isEating) {
+    // 배고픔이 아주 심하면 cry2 이미지
+    const img = (G.mood === 'hungry' && G.hunger < 12)
+      ? '바나나캣(cry2) 1.png'
+      : (CAT_IMGS[G.mood] || CAT_IMGS.normal);
+    setCatImg(img);
+  }
 }
 
 /* ════════════════════════════════════════
@@ -1135,6 +1005,7 @@ cat.addEventListener('dblclick', e => {
   G.mood = 'scared';
   cat.classList.remove('happy', 'hungry', 'walk');
   cat.classList.add('scared', 'run');
+  setCatImg('바나나캣(화남) 1.png');
   say('MREOW!! 😾', 1800);
   G.happy = clamp(G.happy - 10, 0, 100);
 
@@ -1150,6 +1021,7 @@ cat.addEventListener('dblclick', e => {
   setTimeout(() => {
     cat.classList.remove('scared', 'run');
     G.mood = 'normal';
+    setCatImg(CAT_IMGS.normal);
   }, 1800);
 });
 
@@ -1306,6 +1178,10 @@ function feedCat(foodEl) {
   // 고양이 크기 증가 (최대 2.6배)
   G.catScale = G.catScale + 0.35; // 먹을 때마다 확실하게 쑥쑥 성장
   catScale.style.transform = `scale(${G.catScale.toFixed(2)})`;
+
+  // 먹는 이미지 잠깐 표시
+  setCatImg('음식 먹음 1.png');
+  setTimeout(() => setCatImg(CAT_IMGS[G.mood] || CAT_IMGS.normal), 1800);
 
   say('*냠냠* meow~ 😋', 2500);
   const emojis = ['💛','✨','🌟','♡','🎵'];
